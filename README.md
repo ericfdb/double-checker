@@ -37,8 +37,8 @@ Then add your OpenAI API key as a repository secret (`OPENAI_API_KEY`).
 1. A PR is opened or updated
 2. Any in-progress review for the same PR is cancelled automatically (concurrency group)
 3. The action reviews the full diff (`base..HEAD`) using Codex
-4. The review is posted as a PR comment
-5. The workflow check passes or fails based on whether `[P0]` critical issues are found
+4. A PR review is submitted — **approve** if clean, **request changes** if `[P0]` issues are found
+5. The status check passes or fails accordingly
 
 ## Review format
 
@@ -49,7 +49,7 @@ Codex uses its built-in review rubric with severity tags:
 - **`[P2]`** — Moderate: worth noting (maintainability, unclear logic)
 - **`[P3]`** — Minor: optional improvements
 
-Only `[P0]` findings cause the check to fail.
+Only `[P0]` findings trigger a "request changes" review and fail the check.
 
 ## Options
 
@@ -69,7 +69,7 @@ permissions:
 
 ## Branch protection
 
-To enforce the gate, enable branch protection on your default branch and require the `review` status check to pass. The check name comes from the job name in your workflow (default: `review`).
+To enforce the gate, enable branch protection on your default branch and require the `review` status check to pass. You can also require pull request reviews, which will block merge on any "changes requested" verdict. The check name comes from the job name in your workflow (default: `review`).
 
 ## License
 

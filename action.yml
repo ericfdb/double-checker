@@ -95,7 +95,10 @@ runs:
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --request-changes \
-            --body-file "$REVIEW_FILE"
+            --body-file "$REVIEW_FILE" || {
+              echo "::error::Failed to post review"
+              exit 1
+            }
 
           if [ "$FAIL_ON_REJECT" = "true" ]; then
             echo "::error::Double Checker found critical issues in this PR"
@@ -105,5 +108,8 @@ runs:
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --approve \
-            --body-file "$REVIEW_FILE"
+            --body-file "$REVIEW_FILE" || {
+              echo "::error::Failed to post review"
+              exit 1
+            }
         fi
