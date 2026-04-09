@@ -1,0 +1,109 @@
+name: 'Double Checker'
+description: 'AI code review powered by OpenAI Codex. Drop into any repo, get reviews on every PR.'
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  openai-api-key:
+    description: 'OpenAI API key (leave empty when using pre-configured auth)'
+    required: false
+    default: ''
+  model:
+    description: 'Model to use for review'
+    default: 'gpt-5.4'
+  effort:
+    description: 'Reasoning effort: none, low, medium, high, xhigh'
+    default: 'xhigh'
+  fail-on-reject:
+    description: 'Fail the check if the review finds critical issues'
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Codex
+      shell: bash
+      run: |
+        if [ "$(uname)" = "Linux" ]; then
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap > /dev/null
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 2>/dev/null || true
+        fi
+        npm install -g @openai/codex || {
+          echo "::error::Failed to install @openai/codex"
+          exit 1
+        }
+
+    - name: Authenticate
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        if [ -z "$OPENAI_API_KEY" ]; then
+          echo "No API key provided — assuming codex is already authenticated"
+        else
+          echo "$OPENAI_API_KEY" | codex login --with-api-key || {
+            echo "::error::Codex authentication failed — check your OpenAI API key"
+            exit 1
+          }
+        fi
+
+    - name: Run review
+      shell: bash
+      id: review
+      env:
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        set -eo pipefail
+        REVIEW_OUTPUT="$RUNNER_TEMP/double-checker-review.md"
+
+        codex review \
+          --base "${{ github.event.pull_request.base.ref || 'main' }}" \
+          -c model="${{ inputs.model }}" \
+          -c model_reasoning_effort="${{ inputs.effort }}" \
+          2>&1 | tee "$REVIEW_OUTPUT"
+
+        if [ ! -s "$REVIEW_OUTPUT" ]; then
+          echo "::error::codex review produced no output"
+          exit 1
+        fi
+
+        if grep -qE "\[P0\]" "$REVIEW_OUTPUT"; then
+          echo "verdict=reject" >> "$GITHUB_OUTPUT"
+        else
+          echo "verdict=approve" >> "$GITHUB_OUTPUT"
+        fi
+
+        {
+          echo 'body<<DOUBLE_CHECKER_EOF'
+          cat "$REVIEW_OUTPUT"
+          echo 'DOUBLE_CHECKER_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Post PR review
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REVIEW_BODY: ${{ steps.review.outputs.body }}
+        VERDICT: ${{ steps.review.outputs.verdict }}
+        FAIL_ON_REJECT: ${{ inputs.fail-on-reject }}
+      run: |
+        REVIEW_FILE="$RUNNER_TEMP/double-checker-review-body.md"
+        printf '## Double Checker Review\n\n%s\n' "$REVIEW_BODY" > "$REVIEW_FILE"
+
+        if [ "$VERDICT" = "reject" ]; then
+          gh pr review "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --request-changes \
+            --body-file "$REVIEW_FILE"
+
+          if [ "$FAIL_ON_REJECT" = "true" ]; then
+            echo "::error::Double Checker found critical issues in this PR"
+            exit 1
+          fi
+        else
+          gh pr review "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --approve \
+            --body-file "$REVIEW_FILE"
+        fi
