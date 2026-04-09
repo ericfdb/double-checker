@@ -71,12 +71,12 @@ runs:
           exit 1
         fi
 
-        # Build severity pattern: P0 always included, expand based on threshold
+        # Build severity pattern — match only Codex finding lines (- [P0] ...)
         case "${{ inputs.severity }}" in
-          P3) PATTERN='\[(P0|P1|P2|P3)\]' ;;
-          P2) PATTERN='\[(P0|P1|P2)\]' ;;
-          P1) PATTERN='\[(P0|P1)\]' ;;
-          *)  PATTERN='\[P0\]' ;;
+          P3) PATTERN='^- \[(P0|P1|P2|P3)\]' ;;
+          P2) PATTERN='^- \[(P0|P1|P2)\]' ;;
+          P1) PATTERN='^- \[(P0|P1)\]' ;;
+          *)  PATTERN='^- \[P0\]' ;;
         esac
 
         if grep -qE "$PATTERN" "$REVIEW_OUTPUT"; then
