@@ -15,8 +15,11 @@ inputs:
   effort:
     description: 'Reasoning effort: none, low, medium, high, xhigh'
     default: 'xhigh'
+  severity:
+    description: 'Minimum severity to reject: P0, P1, P2, or P3'
+    default: 'P0'
   fail-on-reject:
-    description: 'Fail the check if the review finds critical issues'
+    description: 'Fail the check if the review finds issues at or above the severity threshold'
     default: 'true'
 
 runs:
@@ -68,7 +71,15 @@ runs:
           exit 1
         fi
 
-        if grep -qE "\[P0\]" "$REVIEW_OUTPUT"; then
+        # Build severity pattern: P0 always included, expand based on threshold
+        case "${{ inputs.severity }}" in
+          P3) PATTERN='\[(P0|P1|P2|P3)\]' ;;
+          P2) PATTERN='\[(P0|P1|P2)\]' ;;
+          P1) PATTERN='\[(P0|P1)\]' ;;
+          *)  PATTERN='\[P0\]' ;;
+        esac
+
+        if grep -qE "$PATTERN" "$REVIEW_OUTPUT"; then
           echo "verdict=reject" >> "$GITHUB_OUTPUT"
         else
           echo "verdict=approve" >> "$GITHUB_OUTPUT"

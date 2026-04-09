@@ -49,7 +49,7 @@ Codex uses its built-in review rubric with severity tags:
 - **`[P2]`** — Moderate: worth noting (maintainability, unclear logic)
 - **`[P3]`** — Minor: optional improvements
 
-Only `[P0]` findings trigger a "request changes" review and fail the check.
+By default, only `[P0]` findings trigger a "request changes" review and fail the check. Use the `severity` input to widen the threshold (e.g., `P1` rejects on both `[P0]` and `[P1]`).
 
 ## Options
 
@@ -57,7 +57,8 @@ Only `[P0]` findings trigger a "request changes" review and fail the check.
 |---|---|---|
 | `openai-api-key` | `''` | OpenAI API key (leave empty if auth is pre-configured) |
 | `model` | `gpt-5.4` | Model for review |
-| `fail-on-reject` | `true` | Fail the status check if `[P0]` issues are found |
+| `severity` | `P0` | Minimum severity to reject: `P0`, `P1`, `P2`, or `P3` |
+| `fail-on-reject` | `true` | Fail the status check if issues at or above the severity threshold are found |
 
 ## Required permissions
 
