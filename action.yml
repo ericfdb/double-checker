@@ -85,22 +85,18 @@ runs:
           echo "verdict=approve" >> "$GITHUB_OUTPUT"
         fi
 
-        {
-          echo 'body<<DOUBLE_CHECKER_EOF'
-          cat "$REVIEW_OUTPUT"
-          echo 'DOUBLE_CHECKER_EOF'
-        } >> "$GITHUB_OUTPUT"
-
     - name: Post PR review
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
-        REVIEW_BODY: ${{ steps.review.outputs.body }}
         VERDICT: ${{ steps.review.outputs.verdict }}
         FAIL_ON_REJECT: ${{ inputs.fail-on-reject }}
       run: |
+        # Read review from file — avoids passing large output through env vars
+        # which can exceed ARG_MAX and crash the shell
+        RAW_OUTPUT="$RUNNER_TEMP/double-checker-review.md"
         REVIEW_FILE="$RUNNER_TEMP/double-checker-review-body.md"
-        printf '## Double Checker Review\n\n%s\n' "$REVIEW_BODY" > "$REVIEW_FILE"
+        { printf '## Double Checker Review\n\n'; cat "$RAW_OUTPUT"; printf '\n'; } > "$REVIEW_FILE"
 
         if [ "$VERDICT" = "reject" ]; then
           gh pr review "${{ github.event.pull_request.number }}" \
