@@ -112,9 +112,15 @@ runs:
             exit 1
           fi
         else
+          # Try --approve first; fall back to --comment if the repo doesn't
+          # allow GitHub Actions to approve PRs (the default setting).
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --approve \
+            --body-file "$REVIEW_FILE" 2>/dev/null \
+          || gh pr review "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --comment \
             --body-file "$REVIEW_FILE" || {
               echo "::error::Failed to post review"
               exit 1
