@@ -98,6 +98,16 @@ runs:
         REVIEW_FILE="$RUNNER_TEMP/double-checker-review-body.md"
         { printf '## Double Checker Review\n\n'; cat "$RAW_OUTPUT"; printf '\n'; } > "$REVIEW_FILE"
 
+        # GitHub PR review body limit is 65,536 characters — truncate if needed
+        MAX_CHARS=65000
+        FILE_BYTES=$(wc -c < "$REVIEW_FILE")
+        if [ "$FILE_BYTES" -gt "$MAX_CHARS" ]; then
+          head -c "$MAX_CHARS" "$REVIEW_FILE" > "${REVIEW_FILE}.tmp"
+          printf '\n\n---\n*Review truncated (exceeded GitHub'\''s 65,536 character limit)*\n' >> "${REVIEW_FILE}.tmp"
+          mv "${REVIEW_FILE}.tmp" "$REVIEW_FILE"
+          echo "::warning::Review body truncated from ${FILE_BYTES} to ~${MAX_CHARS} characters (GitHub limit)"
+        fi
+
         if [ "$VERDICT" = "reject" ]; then
           gh pr review "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
